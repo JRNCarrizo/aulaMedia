@@ -24,6 +24,7 @@
   "devDependencies": {
     "electron": "33.4.11",
     "electron-builder": "^26.15.3",
+    "png-to-ico": "^3.0.2",
     "sharp": "^0.35.3"
   },
   "allowScripts": {
@@ -52,7 +53,7 @@
     ],
     "extraResources": [],
     "win": {
-      "icon": "assets/icon.png",
+      "icon": "assets/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -75,8 +76,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Aula Media",
-      "installerIcon": "assets/icon.png",
-      "uninstallerIcon": "assets/icon.png"
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
     },
     "portable": {
       "artifactName": "AulaMedia-${version}-portable.${ext}"
