@@ -1,0 +1,13 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+Thumbs.db
+assets/icon.tmp.png
+*.exe
+*.mp4
+*.mp3
+*.srt
+*.vtt
+.env
+.cursor/

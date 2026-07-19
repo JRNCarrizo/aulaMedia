@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aula Media</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="top">
+        <div>
+          <p class="brand">Aula Media</p>
+          <h1>Descargas para la clase</h1>
+          <p class="sub">
+            Video, audio, subtítulos y recortes. Todo ordenado en Documentos.
+          </p>
+        </div>
+        <button type="button" class="ghost" id="btnOpenRoot" title="Abrir carpeta">
+          Abrir carpeta
+        </button>
+      </header>
+
+      <section class="panel">
+        <label class="label" for="url">Enlace de YouTube</label>
+        <input
+          id="url"
+          type="url"
+          placeholder="https://www.youtube.com/watch?v=..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+
+        <div class="modes" role="group" aria-label="Tipo de descarga">
+          <button type="button" class="mode active" data-mode="video">
+            <span class="mode-title">Video</span>
+            <span class="mode-desc">Carpeta <strong>Videos</strong></span>
+          </button>
+          <button type="button" class="mode" data-mode="audio">
+            <span class="mode-title">Audio MP3</span>
+            <span class="mode-desc">Carpeta <strong>Audio</strong></span>
+          </button>
+          <button type="button" class="mode" data-mode="subs">
+            <span class="mode-title">Subtítulos</span>
+            <span class="mode-desc"><strong>.srt</strong> + texto <strong>.txt</strong></span>
+          </button>
+        </div>
+
+        <div class="options" id="mediaOptions">
+          <label class="check" id="withSubsWrap">
+            <input type="checkbox" id="withSubs" />
+            <span>También descargar subtítulos (.srt + .txt)</span>
+          </label>
+
+          <div class="trim">
+            <p class="label">Recortar (opcional)</p>
+            <div class="trim-row">
+              <div>
+                <label class="mini" for="trimFrom">Desde</label>
+                <input id="trimFrom" type="text" placeholder="0:00" inputmode="numeric" />
+              </div>
+              <div>
+                <label class="mini" for="trimTo">Hasta</label>
+                <input id="trimTo" type="text" placeholder="2:30" inputmode="numeric" />
+              </div>
+            </div>
+            <p class="field-hint">
+              Aplica a video, audio y subtítulos. Formato: <code>1:30</code> o <code>90</code>. Vacío = completo.
+            </p>
+          </div>
+        </div>
+
+        <button type="button" class="primary" id="btnDownload">Descargar</button>
+      </section>
+
+      <section class="status" id="statusPanel" hidden>
+        <div class="status-row">
+          <p id="statusText">Preparando…</p>
+          <span id="statusPercent">0%</span>
+        </div>
+        <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+      </section>
+
+      <section class="library">
+        <h2>Biblioteca</h2>
+        <p class="path" id="libraryPath">…</p>
+        <div class="chips">
+          <button type="button" class="chip" id="btnOpenVideos">Videos</button>
+          <button type="button" class="chip" id="btnOpenAudio">Audio</button>
+          <button type="button" class="chip" id="btnOpenSubs">Subtítulos</button>
+        </div>
+        <p class="hint">
+          <code>Documentos/AulaMedia/</code> → Videos, Audio y Subtitulos
+          (ahí vas a ver el <code>.srt</code> con tiempos y el <code>.txt</code> limpio para imprimir)
+        </p>
+      </section>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
