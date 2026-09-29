@@ -1,6 +1,6 @@
 {
   "name": "aula-media",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "App de escritorio para descargar videos, audio y subtítulos de YouTube, pensada para docentes",
   "main": "electron/main.js",
   "author": "JRNCarrizo",

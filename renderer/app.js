@@ -9,6 +9,8 @@ const modeButtons = document.querySelectorAll('.mode');
 const mediaOptions = document.getElementById('mediaOptions');
 const withSubsWrap = document.getElementById('withSubsWrap');
 const withSubs = document.getElementById('withSubs');
+const projectorWrap = document.getElementById('projectorWrap');
+const forProjector = document.getElementById('forProjector');
 const trimFrom = document.getElementById('trimFrom');
 const trimTo = document.getElementById('trimTo');
 
@@ -18,7 +20,9 @@ let busy = false;
 function syncOptionsVisibility() {
   const isSubsOnly = selectedMode === 'subs';
   withSubsWrap.hidden = isSubsOnly;
+  projectorWrap.hidden = selectedMode !== 'video';
   if (isSubsOnly) withSubs.checked = false;
+  if (selectedMode !== 'video') forProjector.checked = false;
   mediaOptions.hidden = false;
 }
 
@@ -90,6 +94,7 @@ btnDownload.addEventListener('click', async () => {
       withSubs: selectedMode !== 'subs' && withSubs.checked,
       trimFrom: trimFrom.value.trim(),
       trimTo: trimTo.value.trim(),
+      forProjector: selectedMode === 'video' && forProjector.checked,
     });
 
     const extra = [
@@ -100,8 +105,9 @@ btnDownload.addEventListener('click', async () => {
       .join(' + ');
     const extraNote = extra ? ` + ${extra}` : '';
     const trimNote = result.trimmed ? ' (recorte)' : '';
+    const projectorNote = result.forProjector ? ' (proyector)' : '';
     setStatus({
-      message: `Listo: ${result.title}${trimNote}${extraNote}`,
+      message: `Listo: ${result.title}${trimNote}${projectorNote}${extraNote}`,
       percent: 100,
       state: 'done',
     });

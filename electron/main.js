@@ -36,6 +36,88 @@ function getFfmpegPath() {
 
 const ffmpegPath = getFfmpegPath();
 
+function parseFfmpegClock(value) {
+  const match = String(value || '').match(/(\d+):(\d+):(\d+(?:\.\d+)?)/);
+  if (!match) return 0;
+  return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+}
+
+function transcodeForProjector(inputPath, outputPath, onPercent) {
+  return new Promise((resolve, reject) => {
+    if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
+      reject(new Error('No se encontró FFmpeg para adaptar el video.'));
+      return;
+    }
+
+    const args = [
+      '-y',
+      '-i',
+      inputPath,
+      '-c:v',
+      'libx264',
+      '-profile:v',
+      'main',
+      '-level',
+      '4.0',
+      '-pix_fmt',
+      'yuv420p',
+      '-preset',
+      'veryfast',
+      '-crf',
+      '23',
+      '-vf',
+      "scale='min(1920,iw)':-2",
+      '-c:a',
+      'aac',
+      '-ac',
+      '2',
+      '-ar',
+      '44100',
+      '-b:a',
+      '160k',
+      '-movflags',
+      '+faststart',
+      outputPath,
+    ];
+
+    const child = spawn(ffmpegPath, args, { windowsHide: true, shell: false });
+    let stderr = '';
+    let duration = 0;
+
+    child.stderr.on('data', (chunk) => {
+      const text = chunk.toString();
+      stderr += text;
+      const dur = text.match(/Duration:\s*(\d+:\d+:\d+(?:\.\d+)?)/);
+      if (dur) duration = parseFfmpegClock(dur[1]) || duration;
+      const time = text.match(/time=\s*(\d+:\d+:\d+(?:\.\d+)?)/);
+      if (time && duration > 0 && onPercent) {
+        const current = parseFfmpegClock(time[1]);
+        onPercent(Math.max(0, Math.min(100, (current / duration) * 100)));
+      }
+    });
+
+    child.on('error', () => {
+      reject(new Error('No se pudo iniciar la conversión para el proyector.'));
+    });
+
+    child.on('close', (code) => {
+      if (code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+        resolve(outputPath);
+        return;
+      }
+      if (fs.existsSync(outputPath)) {
+        try {
+          fs.unlinkSync(outputPath);
+        } catch {
+          /* ignore */
+        }
+      }
+      console.error('[ffmpeg projector]', stderr.slice(-500));
+      reject(new Error('No se pudo adaptar el video para el proyector.'));
+    });
+  });
+}
+
 function getLibraryRoot() {
   return path.join(app.getPath('documents'), APP_FOLDER_NAME);
 }
@@ -467,6 +549,9 @@ function friendlyYtError(stderr = '', fallback) {
   if (lower.includes('requested format is not available')) {
     return 'No hay un formato descargable para este video. Probá otro enlace.';
   }
+  if (lower.includes('http error 403') || lower.includes('403: forbidden')) {
+    return 'YouTube bloqueó esta descarga (403). Cerrá la app, abrila de nuevo y probá otra vez.';
+  }
   if (lower.includes('too many requests') || lower.includes('http error 429')) {
     return 'YouTube limitó las descargas un momento. Esperá unos segundos y probá de nuevo.';
   }
@@ -577,7 +662,8 @@ const YT_BASE_ARGS = [
   '--no-playlist',
   '--no-warnings',
   '--extractor-args',
-  'youtube:player_client=android_vr,android,web',
+  // android_vr obtiene el video pero Google responde 403 al bajarlo
+  'youtube:player_client=android',
 ];
 
 const YT_PROGRESS_ARGS = [
@@ -658,7 +744,7 @@ ipcMain.handle('library:openFolder', async (_event, kind) => {
 });
 
 ipcMain.handle('download:start', async (event, payload) => {
-  const { url, mode, withSubs = false, trimFrom = '', trimTo = '' } = payload || {};
+  const { url, mode, withSubs = false, trimFrom = '', trimTo = '', forProjector = false } = payload || {};
   const cleanUrl = String(url || '').trim();
   if (!isYouTubeUrl(cleanUrl)) {
     throw new Error('Pegá un enlace válido de YouTube.');
@@ -866,6 +952,41 @@ ipcMain.handle('download:start', async (event, payload) => {
       savedPath = renameKeepExt(savedPath, finalTitle);
     }
 
+    if (!isAudio && forProjector && savedPath && fs.existsSync(savedPath)) {
+      send({
+        status: 'progress',
+        message: 'Adaptando para el proyector…',
+        percent: 90,
+        title,
+      });
+
+      let projectorOut = path.join(path.dirname(savedPath), `${finalTitle} (proyector).mp4`);
+      if (fs.existsSync(projectorOut)) {
+        projectorOut = path.join(
+          path.dirname(savedPath),
+          `${finalTitle} (proyector ${Date.now()}).mp4`
+        );
+      }
+
+      const converted = await transcodeForProjector(savedPath, projectorOut, (pct) => {
+        send({
+          status: 'progress',
+          message: 'Adaptando para el proyector…',
+          percent: 90 + pct * 0.09,
+          title,
+        });
+      });
+
+      if (savedPath !== converted && fs.existsSync(savedPath)) {
+        try {
+          fs.unlinkSync(savedPath);
+        } catch {
+          /* ignore */
+        }
+      }
+      savedPath = converted;
+    }
+
     if (wantSubs) {
       const subs = findSubtitleFiles(folders.subs, videoId);
       if (subs.length) {
@@ -885,6 +1006,7 @@ ipcMain.handle('download:start', async (event, payload) => {
   const folderLabel = isSubsOnly ? 'Subtitulos' : isAudio ? 'Audio' : 'Videos';
   const bits = [`Guardado en ${folderLabel}`];
   if (trimmed) bits.push('recorte');
+  if (!isAudio && !isSubsOnly && forProjector) bits.push('proyector');
   if (subtitlePath && !isSubsOnly) bits.push('subtítulos');
   if (textPath) bits.push('texto .txt');
 
@@ -907,5 +1029,6 @@ ipcMain.handle('download:start', async (event, payload) => {
     folder: outputDir,
     mode,
     trimmed,
+    forProjector: Boolean(!isAudio && !isSubsOnly && forProjector),
   };
 });
