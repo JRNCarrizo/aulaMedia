@@ -20,18 +20,35 @@ const YTDLP_PATH = resolvePackagedBinary(
   process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'
 );
 
+function executablePath(candidate) {
+  if (!candidate) return null;
+  // app.asar se puede leer, pero Windows no puede ejecutar un .exe que vive ahí.
+  const unpacked = candidate.includes(`${path.sep}app.asar${path.sep}`)
+    ? candidate.replace(
+        `${path.sep}app.asar${path.sep}`,
+        `${path.sep}app.asar.unpacked${path.sep}`
+      )
+    : candidate;
+  if (fs.existsSync(unpacked)) return unpacked;
+  if (!candidate.includes(`${path.sep}app.asar${path.sep}`) && fs.existsSync(candidate)) {
+    return candidate;
+  }
+  return null;
+}
+
 function getFfmpegPath() {
+  const name = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+  const candidates = [resolvePackagedBinary('ffmpeg-static', name)];
   try {
-    const resolved = require('ffmpeg-static');
-    if (resolved && fs.existsSync(resolved)) return resolved;
+    candidates.push(require('ffmpeg-static'));
   } catch {
     /* ignore */
   }
-  const fallback = resolvePackagedBinary(
-    'ffmpeg-static',
-    process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
-  );
-  return fs.existsSync(fallback) ? fallback : null;
+  for (const candidate of candidates) {
+    const resolved = executablePath(candidate);
+    if (resolved) return resolved;
+  }
+  return null;
 }
 
 const ffmpegPath = getFfmpegPath();
@@ -96,7 +113,8 @@ function transcodeForProjector(inputPath, outputPath, onPercent) {
       }
     });
 
-    child.on('error', () => {
+    child.on('error', (err) => {
+      console.error('[ffmpeg spawn]', ffmpegPath, err);
       reject(new Error('No se pudo iniciar la conversión para el proyector.'));
     });
 
